@@ -15,26 +15,27 @@ const {
 
 //list all
 router.get("/", (req, res, next) => {
+  let range = JSON.parse(req.query.range);
   const options = {
-    page: +req.query.page || 1,
-    limit: +req.query.limit || 10
+    skip: parseInt(range[0]) || 0,
+    limit: range[1] - range[0] + 1 || 10
   };
-
-  User.paginate({}, options, async (err, user) => {
-    if (err) {
-      console.log(err);
-      next(new BadRequestResponse({ err: err }));
-    } else {
+  User.find({})
+    .limit(options.limit)
+    .skip(options.skip)
+    .then(async (result) => {
       let count = await User.find({}).count();
-      const data = (user && user.docs.map(rename_IdToId)) || [];
+      const data = (result && result.map(rename_IdToId)) || [];
       res.set({
-        "Content-Range": `nfts 0-10/${count}`,
+        "Content-Range": `users 0-10/${count}`,
         "Access-Control-Expose-Headers": "X-Total-Count",
         "X-Total-Count": count
       });
       res.json(data);
-    }
-  });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 });
 
 router.get("/:id", (req, res, next) => {

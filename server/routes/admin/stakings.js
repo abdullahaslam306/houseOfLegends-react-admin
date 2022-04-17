@@ -11,26 +11,28 @@ const {
 } = require("../../utilities/utils");
 
 router.get("/", (req, res, next) => {
+  let range = JSON.parse(req.query.range);
   const options = {
-    page: +req.query.page || 1,
-    limit: +req.query.limit || 10
+    skip: parseInt(range[0]) || 0,
+    limit: range[1] - range[0] + 1 || 10
   };
 
-  Staking.paginate({}, options, async (err, staking) => {
-    if (err) {
-      console.log(err);
-      next(new BadRequestResponse({ err: err }));
-    } else {
+  Staking.find({})
+    .limit(options.limit)
+    .skip(options.skip)
+    .then(async (result) => {
       let count = await Staking.find({}).count();
-      const data = (staking && staking.docs.map(rename_IdToId)) || [];
+      const data = (result && result.map(rename_IdToId)) || [];
       res.set({
-        "Content-Range": `nfts 0-10/${count}`,
+        "Content-Range": `orders 0-10/${count}`,
         "Access-Control-Expose-Headers": "X-Total-Count",
         "X-Total-Count": count
       });
       res.json(data);
-    }
-  });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 });
 
 router.get("/:id", (req, res, next) => {

@@ -20,6 +20,7 @@ router.post("/", (req, res, next) => {
   perk.showOnTop = req.body.showOnTop;
   perk.type = req.body.type;
   perk.slug = req.body.slug;
+  perk.enabled = req.body.enabled;
 
   perk
     .save()
@@ -32,31 +33,28 @@ router.post("/", (req, res, next) => {
 });
 
 router.get("/", (req, res, next) => {
-  try {
-    const options = {
-      page: +req.query.page || 1,
-      limit: +req.query.limit || 12
-    };
+  let range = JSON.parse(req.query.range);
+  const options = {
+    skip: parseInt(range[0]) || 0,
+    limit: range[1] - range[0] + 1 || 10
+  };
 
-    Perk.paginate({}, options, async (err, result) => {
-      if (err) {
-        console.log(err);
-        next(new BadRequestResponse({ err: err }));
-      } else {
-        let count = await Perk.find({}).count();
-        const data = (result && result.docs.map(rename_IdToId)) || [];
-
-        res.set({
-          "Content-Range": `nfts 0-10/${count}`,
-          "Access-Control-Expose-Headers": "X-Total-Count",
-          "X-Total-Count": count
-        });
-        res.status(200).json(data);
-      }
+  Perk.find({})
+    .limit(options.limit)
+    .skip(options.skip)
+    .then(async (result) => {
+      let count = await Perk.find({}).count();
+      const data = (result && result.map(rename_IdToId)) || [];
+      res.set({
+        "Content-Range": `orders 0-10/${count}`,
+        "Access-Control-Expose-Headers": "X-Total-Count",
+        "X-Total-Count": count
+      });
+      res.json(data);
+    })
+    .catch((err) => {
+      console.log(err);
     });
-  } catch (err) {
-    console.log(err);
-  }
 });
 
 router.get("/:id", (req, res, next) => {
@@ -96,6 +94,9 @@ router.put("/:id", (req, res, next) => {
   }
   if (req.body.type) {
     dataToUpdate.type = req.body.type;
+  }
+  if (req.body.enabled) {
+    dataToUpdate.enabled = req.body.enabled;
   }
 
   Perk.findOneAndUpdate({ _id: req.params.id }, dataToUpdate)

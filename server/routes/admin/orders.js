@@ -2,30 +2,32 @@ let router = require("express").Router();
 let mongoose = require("mongoose");
 let Order = mongoose.model("Order");
 let httpResponse = require("express-http-response");
-let BadRequestResponse = httpResponse.BadRequestResponse;
 const { rename_IdToId } = require("../../utilities/utils");
 
 router.get("/", (req, res, next) => {
+  console.log(req.query);
+  let range = JSON.parse(req.query.range);
   const options = {
-    page: +req.query.page || 1,
-    limit: +req.query.limit || 10
+    skip: parseInt(range[0]) || 0,
+    limit: range[1] - range[0] + 1 || 10
   };
 
-  Order.paginate({}, options, async (err, result) => {
-    if (err) {
-      console.log(err);
-      next(new BadRequestResponse({ err: err }));
-    } else {
+  Order.find({})
+    .limit(options.limit)
+    .skip(options.skip)
+    .then(async (result) => {
       let count = await Order.find({}).count();
-      const data = (result && result.docs.map(rename_IdToId)) || [];
+      const data = (result && result.map(rename_IdToId)) || [];
       res.set({
-        "Content-Range": `nfts 0-10/${count}`,
+        "Content-Range": `orders 0-10/${count}`,
         "Access-Control-Expose-Headers": "X-Total-Count",
         "X-Total-Count": count
       });
       res.json(data);
-    }
-  });
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 });
 
 module.exports = router;
