@@ -1,4 +1,5 @@
 "use strict";
+//mongodb://ec2-54-153-114-186.us-west-1.compute.amazonaws.com:27017/LegendaryVault
 module.exports = {
   PORT: 3000,
   MONGODB_URI:

@@ -1,18 +1,47 @@
 let router = require("express").Router();
 let mongoose = require("mongoose");
 let Order = mongoose.model("Order");
-let httpResponse = require("express-http-response");
-const { rename_IdToId } = require("../../utilities/utils");
+const {
+  convertRawIDToMongoDBId,
+  rename_IdToId
+} = require("../../utilities/utils");
+
+// helper functions
+const isValid = (param) => {
+  if (param !== undefined && param !== null) {
+    return true;
+  }
+  return false;
+};
 
 router.get("/", (req, res, next) => {
+  let filtersJSON = {},
+    filters = {};
   console.log(req.query);
   let range = JSON.parse(req.query.range);
   const options = {
     skip: parseInt(range[0]) || 0,
     limit: range[1] - range[0] + 1 || 10
   };
-
-  Order.find({})
+  if (isValid(req.query.filter)) {
+    filtersJSON = JSON.parse(req.query.filter);
+    if (isValid(filtersJSON.name)) {
+      filters.name = { $regex: filtersJSON.name, $options: "i" };
+    }
+    if (isValid(filtersJSON.walletAddress)) {
+      filters.walletAddress = {
+        $regex: filtersJSON.walletAddress,
+        $options: "i"
+      };
+    }
+    if (isValid(filtersJSON.status)) {
+      filters.status = {
+        $regex: filtersJSON.status,
+        $options: "i"
+      };
+    }
+  }
+  Order.find(filters)
     .limit(options.limit)
     .skip(options.skip)
     .then(async (result) => {
@@ -29,5 +58,53 @@ router.get("/", (req, res, next) => {
       console.log(err);
     });
 });
+router.get("/:id", (req, res, next) => {
+  if (req.params.id) {
+    Order.findById(req.params.id)
+      .then((perk) => {
+        res.status(200).send(rename_IdToId(perk));
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  } else {
+    return res.status(400).send({ error: "Order id not provided." });
+  }
+});
 
+router.put("/:id", async (req, res, next) => {
+  if (!req.params.id) {
+    next(new BadRequestResponse({ message: "Please provide valid order id." }));
+  }
+  // console.log("Update Request", req.body.supportTeamAssigned);
+  const dataToUpdate = {};
+
+  if (req.body.status) {
+    dataToUpdate.status = req.body.status;
+  }
+  if (req.body.supportTeamAssigned != null) {
+    dataToUpdate.supportTeamAssigned = req.body.supportTeamAssigned;
+  }
+  console.log(typeof req.body.supportTeamAssigned);
+  Order.findOneAndUpdate({ _id: req.params.id }, dataToUpdate)
+    .then((success) => {
+      res.status(200).send(rename_IdToId(success));
+    })
+    .catch((error) => {
+      return res.status(500).send({ error: "Internal Server Error" });
+    });
+});
+
+router.delete("/:id", (req, res, next) => {
+  console.log(req.params.id);
+  if (req.params.id) {
+    Order.findByIdAndRemove({ _id: convertRawIDToMongoDBId(req.params.id) })
+      .then((success) => {
+        res.status(200).send({ message: "Order Deleted" });
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
+});
 module.exports = router;

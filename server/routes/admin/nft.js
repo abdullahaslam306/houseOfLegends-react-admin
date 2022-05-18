@@ -7,17 +7,36 @@ let ForbiddenResponse = httpResponse.ForbiddenResponse;
 let BadRequestResponse = httpResponse.BadRequestResponse;
 const {
   convertRawIDToMongoDBId,
-  rename_IdToId
+  rename_IdToId,
+  isValid
 } = require("../../utilities/utils");
 
 router.get("/", (req, res, next) => {
+  let filtersJSON = {},
+    filters = {};
   let range = JSON.parse(req.query.range);
   const options = {
     skip: parseInt(range[0]) || 0,
     limit: range[1] - range[0] + 1 || 10
   };
+
+  if (isValid(req.query.filter)) {
+    filtersJSON = JSON.parse(req.query.filter);
+    if (isValid(filtersJSON.address)) {
+      filters.address = { $regex: filtersJSON.address, $options: "i" };
+    }
+    if (isValid(filtersJSON.tokenUri)) {
+      filters.tokenUri = { $regex: filtersJSON.tokenUri, $options: "i" };
+    }
+    if (isValid(filtersJSON.tokenId)) {
+      filters.tokenId = { $regex: filtersJSON.tokenId, $options: "i" };
+    }
+    if (isValid(filtersJSON.noOfGems)) {
+      filters.noOfGems = filtersJSON.noOfGems;
+    }
+  }
   // console.log(options);
-  NFT.find({})
+  NFT.find(filters)
     .limit(options.limit)
     .skip(options.skip)
     .then(async (result) => {
