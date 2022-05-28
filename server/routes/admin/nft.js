@@ -3,7 +3,6 @@ let mongoose = require("mongoose");
 let NFT = mongoose.model("NFT");
 let httpResponse = require("express-http-response");
 let OkResponse = httpResponse.OkResponse;
-let ForbiddenResponse = httpResponse.ForbiddenResponse;
 let BadRequestResponse = httpResponse.BadRequestResponse;
 const {
   convertRawIDToMongoDBId,
@@ -35,8 +34,15 @@ router.get("/", (req, res, next) => {
       filters.noOfGems = filtersJSON.noOfGems;
     }
   }
+  let sortFilter = {};
+  if (isValid(req.query.sort)) {
+    let sorting = JSON.parse(req.query.sort);
+    sortFilter[sorting[0]] = sorting[1] == "ASC" ? 1 : -1;
+    console.log(sortFilter);
+  }
   // console.log(options);
   NFT.find(filters)
+    .sort(sortFilter)
     .limit(options.limit)
     .skip(options.skip)
     .then(async (result) => {

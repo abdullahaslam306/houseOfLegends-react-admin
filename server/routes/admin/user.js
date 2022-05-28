@@ -10,32 +10,57 @@ let recoverPersonalSignature = require("eth-sig-util").recoverPersonalSignature;
 
 const {
   convertRawIDToMongoDBId,
-  rename_IdToId
+  rename_IdToId,
+  isValid
 } = require("../../utilities/utils");
 
 //list all
 router.get("/", (req, res, next) => {
-  let range = JSON.parse(req.query.range);
-  const options = {
-    skip: parseInt(range[0]) || 0,
-    limit: range[1] - range[0] + 1 || 10
-  };
-  User.find({})
-    .limit(options.limit)
-    .skip(options.skip)
-    .then(async (result) => {
-      let count = await User.find({}).count();
-      const data = (result && result.map(rename_IdToId)) || [];
-      res.set({
-        "Content-Range": `users 0-10/${count}`,
-        "Access-Control-Expose-Headers": "X-Total-Count",
-        "X-Total-Count": count
+  try {
+    let range = JSON.parse(req.query.range);
+    let filtersJSON = {},
+      filters = {};
+    const options = {
+      skip: parseInt(range[0]) || 0,
+      limit: range[1] - range[0] + 1 || 10
+    };
+    if (isValid(req.query.filter)) {
+      filtersJSON = JSON.parse(req.query.filter);
+      if (isValid(filtersJSON.walletAddress)) {
+        filters.walletAddress = {
+          $regex: filtersJSON.walletAddress,
+          $options: "i"
+        };
+      }
+      if (isValid(filtersJSON.nonce)) {
+        filters.nonce = filtersJSON.nonce;
+      }
+    }
+    let sortFilter = {};
+    if (isValid(req.query.sort)) {
+      let sorting = JSON.parse(req.query.sort);
+      sortFilter[sorting[0]] = sorting[1] == "ASC" ? 1 : -1;
+    }
+    User.find(filters)
+      .sort(sortFilter)
+      .limit(options.limit)
+      .skip(options.skip)
+      .then(async (result) => {
+        let count = await User.find({}).count();
+        const data = (result && result.map(rename_IdToId)) || [];
+        res.set({
+          "Content-Range": `users 0-10/${count}`,
+          "Access-Control-Expose-Headers": "X-Total-Count",
+          "X-Total-Count": count
+        });
+        res.json(data);
+      })
+      .catch((err) => {
+        console.log(err);
       });
-      res.json(data);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
+  } catch (err) {
+    console.log(err);
+  }
 });
 
 router.get("/:id", (req, res, next) => {

@@ -73,8 +73,14 @@ router.get("/", (req, res, next) => {
       filters.price = filtersJSON.price;
     }
   }
-
+  let sortFilter = {};
+  if (isValid(req.query.sort)) {
+    let sorting = JSON.parse(req.query.sort);
+    sortFilter[sorting[0]] = sorting[1] == "ASC" ? 1 : -1;
+    console.log(sortFilter);
+  }
   Perk.find(filters)
+    .sort(sortFilter)
     .limit(options.limit)
     .skip(options.skip)
     .then(async (result) => {

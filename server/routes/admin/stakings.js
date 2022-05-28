@@ -19,6 +19,9 @@ router.get("/", (req, res, next) => {
     skip: parseInt(range[0]) || 0,
     limit: range[1] - range[0] + 1 || 10
   };
+  if (options.limit === 1000) {
+    options.limit = 15000;
+  }
   if (isValid(req.query.filter)) {
     filtersJSON = JSON.parse(req.query.filter);
     if (isValid(filtersJSON.asset)) {
@@ -31,7 +34,14 @@ router.get("/", (req, res, next) => {
       filters.endDate = { $lte: filtersJSON.endDate };
     }
   }
+  let sortFilter = {};
+  if (isValid(req.query.sort)) {
+    let sorting = JSON.parse(req.query.sort);
+    sortFilter[sorting[0]] = sorting[1] == "ASC" ? 1 : -1;
+    console.log(sortFilter);
+  }
   Staking.find(filters)
+    .sort(sortFilter)
     .limit(options.limit)
     .skip(options.skip)
     .then(async (result) => {
